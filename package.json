@@ -20,10 +20,10 @@
     "prepare": "jco guest-types wit/v0.1 -n plugin -o dist/bindings --name index"
   },
   "dependencies": {
-    "@bytecodealliance/componentize-js": "^0.21.0",
-    "esbuild": "^0.28.0"
+    "componentize-qjs": "^0.4.5",
+    "esbuild": "^0.28.2"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "^1.19.0"
+    "@bytecodealliance/jco": "^1.34.0"
   }
 }

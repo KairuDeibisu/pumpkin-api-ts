@@ -1,10 +1,7 @@
 #! /usr/bin/env node
 
 import * as esbuild from "esbuild";
-import {
-  componentize,
-  version as componentize_version,
-} from "@bytecodealliance/componentize-js";
+import { componentize } from "componentize-qjs";
 import * as path from "node:path";
 import * as fs from "node:fs";
 
@@ -22,14 +19,14 @@ async function buildPlugin(entryPath, outputPath, witDir) {
     external: ["pumpkin:plugin/*"],
   });
 
-  console.log(
-    `2. Running through \`componentize-js\` ` + componentize_version + `...`,
-  );
+  console.log(`2. Running through \`componentize-qjs\`...`);
   try {
     const { component } = await componentize({
       worldName: "plugin",
       witPath: witDir,
-      sourcePath: tempJs
+      jsSource: fs.readFileSync(tempJs, "utf8"),
+      optSize: true,
+      minify: true,
     });
 
     fs.writeFileSync(outputPath, component);
@@ -54,9 +51,7 @@ if (args.length < 2) {
 
 const entry = args[0];
 const output = args[1];
-const wit =
-  args[2] ||
-  path.join(import.meta.dirname, "../wit/v0.1");
+const wit = args[2] || path.join(import.meta.dirname, "../wit/v0.1");
 
 buildPlugin(entry, output, wit).catch((err) => {
   console.error(err);
