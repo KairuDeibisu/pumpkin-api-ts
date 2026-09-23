@@ -6,7 +6,7 @@ gametest.registerAsync(
   "PumpkinTests",
   "simulatedPlayerTeleport",
   async (test) => {
-    const player = await test.spawnSimulatedPlayer(
+    const player = test.spawnSimulatedPlayer(
       { x: 0, y: 80, z: 0 },
       "PumpkinBot",
     );

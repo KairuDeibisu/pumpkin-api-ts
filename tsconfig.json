@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "lib": [
+      "ES2022",
+      "ESNext.Disposable"
+    ],
+    "paths": {
+      "@pumpkinmc/pumpkin-api-ts": [
+        "./dist/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "dist/*.ts",
+    "example/gametest.ts",
+    "tests/*.ts"
+  ]
+}

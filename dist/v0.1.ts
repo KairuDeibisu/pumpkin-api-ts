@@ -1,4 +1,4 @@
-/// <reference path="./bindings/index.d.ts" />
+/// <reference path="./bindings/v0.1/index.d.ts" />
 
 import {
   Command,

@@ -1,0 +1,44 @@
+diff --git a/crates/core/src/lib.rs b/crates/core/src/lib.rs
+index 5ce624c..9c13a98 100644
+--- a/crates/core/src/lib.rs
++++ b/crates/core/src/lib.rs
+@@ -244,7 +244,7 @@ async fn wizer_init(
+
+     let mut linker = Linker::new(&engine);
+     linker.allow_shadowing(true);
+-    linker.define_unknown_imports_as_traps(&comp)?;
++    define_async_traps(&mut linker, &comp, &engine)?;
+     wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
+     wasmtime_wasi::p3::add_to_linker(&mut linker)?;
+
+@@ -319,3 +319,30 @@ fn register_module_loader(linker: &mut Linker<Ctx>, resolver: Option<Resolver>)
+
+     Ok(())
+ }
++
++// Wasmtime 47's unknown-import stubs are sync even for native async imports.
++fn define_async_traps(linker: &mut Linker<Ctx>, component: &WasmtimeComponent, engine: &Engine) -> Result<()> {
++    use wasmtime::component::types::ComponentItem;
++    fn visit(instance: &mut wasmtime::component::LinkerInstance<'_, Ctx>, name: &str, item: ComponentItem, engine: &Engine) -> Result<()> {
++        match item {
++            ComponentItem::ComponentFunc(func) if func.async_() => {
++                instance.func_new_concurrent(name, |_, _, _, _| Box::pin(async { Err(wasmtime::Error::msg("host import called during JS initialization")) }))?;
++            }
++            ComponentItem::ComponentFunc(_) => {
++                instance.func_new(name, |_, _, _, _| Err(wasmtime::Error::msg("host import called during JS initialization")))?;
++            }
++            ComponentItem::Resource(_) => {
++                instance.resource(name, wasmtime::component::ResourceType::host::<()>(), |_, _| Ok(()))?;
++            }
++            ComponentItem::ComponentInstance(ty) => {
++                let mut nested = instance.instance(name)?;
++                for (name, item) in ty.exports(engine) { visit(&mut nested, name, item.ty, engine)?; }
++            }
++            _ => {}
++        }
++        Ok(())
++    }
++    let mut root = linker.root();
++    for (name, item) in component.component_type().imports(engine) { visit(&mut root, name, item.ty, engine)?; }
++    Ok(())
++}

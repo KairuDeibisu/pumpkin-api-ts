@@ -1,3 +1,7 @@
+/// <reference path="./bindings/v0.2/index.d.ts" />
+import type * as Mojang from "@minecraft/server-gametest";
+import type { Vector3, CommandResult, GameMode } from "@minecraft/server";
+import { getNextHandlerId } from "./handler-id";
 import * as hostGameTest from "pumpkin:plugin/gametest@0.2.0";
 import type {
   GameMode as HostGameMode,
@@ -8,9 +12,7 @@ import type {
   Test as HostTest,
 } from "pumpkin:plugin/gametest@0.2.0";
 
-type Vector3 = { x: number; y: number; z: number };
-type CommandResult = { successCount: number };
-type GameTestHandler = (test: Test) => Promise<void>;
+type GameTestHandler = Parameters<typeof Mojang.registerAsync>[2];
 
 type PendingRegistration = {
   testClassName: string;
@@ -20,7 +22,6 @@ type PendingRegistration = {
 
 const handlers = new Map<number, GameTestHandler>();
 const pendingRegistrations: PendingRegistration[] = [];
-let nextHandlerId = 0;
 let flushedRegistrationCount = 0;
 
 function errorMessage(error: unknown): string {
@@ -69,7 +70,7 @@ function toHostGameMode(gameMode: unknown): HostGameMode | undefined {
   throw new Error("Unsupported GameMode value: " + String(gameMode));
 }
 
-function unsupportedRegistrationBuilder(): object {
+function unsupportedRegistrationBuilder(): Mojang.RegistrationBuilder {
   let proxy: object;
   proxy = new Proxy(
     {},
@@ -92,7 +93,8 @@ function unsupportedRegistrationBuilder(): object {
       },
     },
   );
-  return proxy;
+  // Unsupported builder methods throw; no unbacked functionality is claimed.
+  return proxy as Mojang.RegistrationBuilder;
 }
 
 /**
@@ -105,12 +107,12 @@ export function registerAsync(
   testClassName: string,
   testName: string,
   testFunction: GameTestHandler,
-): object {
+): Mojang.RegistrationBuilder {
   if (!testClassName.trim() || !testName.trim()) {
     throw new Error("GameTest class and test names must not be empty");
   }
 
-  const handlerId = nextHandlerId++;
+  const handlerId = getNextHandlerId();
   handlers.set(handlerId, testFunction);
   pendingRegistrations.push({ testClassName, testName, handlerId });
   return unsupportedRegistrationBuilder();
@@ -138,7 +140,8 @@ export async function dispatchGameTest(
   }
 
   try {
-    await handler(new Test(hostTest));
+    // Only the backed Test subset crosses this explicit compatibility boundary.
+    await handler(new Test(hostTest) as unknown as Mojang.Test);
   } catch (error) {
     throw errorMessage(error);
   }
@@ -148,12 +151,12 @@ export async function dispatchGameTest(
 export class Test {
   constructor(private readonly host: HostTest) {}
 
-  async spawnSimulatedPlayer(
+  spawnSimulatedPlayer(
     blockLocation: Vector3,
     name: string = "Simulated Player",
-    gameMode?: unknown,
-  ): Promise<SimulatedPlayer> {
-    const player = await this.host.spawnSimulatedPlayer(
+    gameMode?: GameMode,
+  ): SimulatedPlayer {
+    const player = this.host.spawnSimulatedPlayer(
       toHostPosition(blockLocation),
       name,
       toHostGameMode(gameMode),
@@ -170,10 +173,10 @@ export class Test {
  * them at runtime. Await remains source-compatible with the Mojang declarations.
  */
 export class SimulatedPlayer {
-  constructor(private readonly host: HostSimulatedPlayer) {}
+  constructor(private readonly host: Promise<HostSimulatedPlayer>) {}
 
   async runCommand(command: string): Promise<CommandResult> {
-    return this.host.runCommand(command);
+    return (await this.host).runCommand(command);
   }
 
   get location(): Promise<Vector3> {
@@ -181,10 +184,17 @@ export class SimulatedPlayer {
   }
 
   private async readLocation(): Promise<Vector3> {
-    return fromHostPosition(await this.host.getPosition());
+    return fromHostPosition(await (await this.host).getPosition());
   }
 
   async disconnect(): Promise<void> {
-    await this.host.disconnect();
+    await (await this.host).disconnect();
   }
 }
+
+// Check official argument and result contracts while exposing async operations
+// truthfully inside the adapter. Guest source uses the official declarations.
+const _registerContract: typeof Mojang.registerAsync = registerAsync;
+type SpawnArguments = Parameters<Mojang.Test["spawnSimulatedPlayer"]>;
+const _spawnContract: (...args: SpawnArguments) => SimulatedPlayer =
+  Test.prototype.spawnSimulatedPlayer;

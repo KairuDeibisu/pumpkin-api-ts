@@ -1,4 +1,5 @@
-/// <reference path="./bindings/index.d.ts" />
+/// <reference path="./bindings/v0.2/index.d.ts" />
+import { getNextHandlerId } from "./handler-id";
 
 import type {
   Command,
@@ -61,11 +62,7 @@ const commandSuggestionHandlers = new Map<number, CommandSuggestionHandler>();
 const taskHandlers = new Map<number, TaskHandler>();
 const generators = new Map<number, ChunkGenerator>();
 const aiGoals = new Map<number, AiGoal>();
-let nextHandlerId = 0;
 
-function getNextHandlerId(): number {
-  return nextHandlerId++;
-}
 
 function stringError(error: unknown): string {
   if (error instanceof Error) {

@@ -123,7 +123,9 @@ The build command now accepts an explicit ABI:
 v0.2 is the default. The exact v0.2 WIT package used by the Pumpkin GameTest
 feature branch is vendored in wit-v0.2; v0.1 continues to use wit/v0.1.
 
-Generate guest declarations with npm run generate:v0.2 or npm run generate:v0.1.
+Generate guest declarations with `npm run generate:v0.2` or `npm run generate:v0.1`.
+They live in separate `dist/bindings/v0.2` and `dist/bindings/v0.1` directories,
+so generating either ABI does not invalidate the other wrapper.
 
 For v0.2 GameTest source, install @minecraft/server-gametest for Mojang's public
 TypeScript declarations and keep the normal import:
@@ -151,3 +153,42 @@ GameTest/SimulatedPlayer API are intentionally unsupported; builder calls fail
 with an explicit error.
 
 See example/gametest.ts for the complete teleport GameTest.
+
+
+`test.spawnSimulatedPlayer(position, name)` returns a wrapper immediately, as in
+Mojang's declaration. The wrapper holds the pending host resource; its three
+backed operations await that resource. Runtime `runCommand`, `location`, and
+`disconnect` return Promises despite Mojang's synchronous declarations. Always
+await them as shown above. No other Test/Player members are implemented. All
+v0.2 callbacks share one numeric ID allocator, and callbacks stay in JavaScript.
+
+### Local validation
+
+Use Node 24.12.0 (`nvm use`). From a clone, initialize the pinned v0.1 submodule:
+
+```sh
+git submodule update --init wit
+npm install
+npm run generate:v0.2
+npm run typecheck
+npm run build:gametest
+cd example
+npm install
+npm run build:v0.1
+```
+
+The v0.2 build requires Rust/Cargo, Git, curl, tar, and a native C toolchain on
+its first run. Published `componentize-qjs@0.4.5` uses synchronous trap stubs for
+native async imports during snapshot initialization, which fails with an async
+type mismatch before guest initialization. `src/componentizer.js` builds the
+pinned upstream revision with `src/componentize-qjs-async-stubs.patch`, changing
+only these snapshot stubs. The exact vendored WIT is used unchanged. The runtime
+archive is SHA-256 verified and the built tool is cached under
+`~/.cache/pumpkin-api-ts/`. Run `npm run setup:componentizer` to prepare it
+separately. `PUMPKIN_COMPONENTIZE_QJS` can select an already-patched CLI.
+The v0.1 build continues to use the published npm componentizer.
+
+Pumpkin's v0.2 runtime currently backs GameTest and lifecycle resource handling.
+Other v0.2 host systems are trapping stubs; the generated declarations describe
+the ABI, not a promise that every host system is implemented. v0.1 retains its
+existing implementation.

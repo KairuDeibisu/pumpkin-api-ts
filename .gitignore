@@ -1,2 +1,4 @@
 dist/bindings
 node_modules
+
+example/build/

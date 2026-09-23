@@ -7,9 +7,9 @@
   "types": "dist/index.ts",
   "files": [
     "dist",
-    "src/build.js",
     "wit",
-    "wit-v0.2"
+    "wit-v0.2",
+    "src"
   ],
   "publishConfig": {
     "tag": "dev"
@@ -18,15 +18,21 @@
     "pumpkin-plugin-build": "src/build.js"
   },
   "scripts": {
-    "prepare": "npm run generate:v0.2",
-    "generate:v0.1": "jco guest-types wit/v0.1 -n plugin -o dist/bindings --name index",
-    "generate:v0.2": "jco guest-types wit-v0.2 -n plugin -o dist/bindings --name index"
+    "prepare": "npm run generate:v0.1 && npm run generate:v0.2",
+    "generate:v0.1": "jco guest-types wit/v0.1 -n plugin -o dist/bindings/v0.1 --name index",
+    "generate:v0.2": "jco guest-types wit-v0.2 -n plugin -o dist/bindings/v0.2 --name index",
+    "typecheck": "tsc --noEmit",
+    "build:gametest": "node src/build.js example/gametest.ts example/build/gametest.wasm --abi 0.2",
+    "setup:componentizer": "node --input-type=module -e 'import { ensureComponentizer } from \"./src/componentizer.js\"; console.log(ensureComponentizer());'"
   },
   "dependencies": {
     "componentize-qjs": "^0.4.5",
     "esbuild": "^0.28.2"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "^1.34.0"
-  }
+    "@bytecodealliance/jco": "^1.34.0",
+    "@minecraft/server-gametest": "1.0.0-beta.1.21.60-preview.24",
+    "typescript": "^7.0.2"
+  },
+  "type": "module"
 }

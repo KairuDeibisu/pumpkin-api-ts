@@ -4,6 +4,8 @@ import * as esbuild from "esbuild";
 import { componentize } from "componentize-qjs";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { execFileSync } from "node:child_process";
+import { ensureComponentizer } from "./componentizer.js";
 
 const packageRoot = path.resolve(import.meta.dirname, "..");
 
@@ -91,14 +93,20 @@ async function buildPlugin(entryPath, outputPath, witDir, abi) {
 
   console.log("2. Running through componentize-qjs...");
   try {
+    if (abi === "0.2") {
+      execFileSync(ensureComponentizer(), [
+        "--wit", witDir, "--world", "plugin", "--js", tempJs,
+        "--output", outputPath, "--opt-size", "--minify",
+      ], { stdio: "inherit" });
+    } else {
     const { component } = await componentize({
-      worldName: "plugin",
+      world: "plugin",
       witPath: witDir,
       jsSource: fs.readFileSync(tempJs, "utf8"),
       optSize: true,
-      minify: true,
     });
     fs.writeFileSync(outputPath, component);
+    }
   } finally {
     if (fs.existsSync(tempJs)) {
       fs.unlinkSync(tempJs);
