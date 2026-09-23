@@ -8,7 +8,8 @@
   "files": [
     "dist",
     "src/build.js",
-    "wit"
+    "wit",
+    "wit-v0.2"
   ],
   "publishConfig": {
     "tag": "dev"
@@ -17,7 +18,9 @@
     "pumpkin-plugin-build": "src/build.js"
   },
   "scripts": {
-    "prepare": "jco guest-types wit/v0.1 -n plugin -o dist/bindings --name index"
+    "prepare": "npm run generate:v0.2",
+    "generate:v0.1": "jco guest-types wit/v0.1 -n plugin -o dist/bindings --name index",
+    "generate:v0.2": "jco guest-types wit-v0.2 -n plugin -o dist/bindings --name index"
   },
   "dependencies": {
     "componentize-qjs": "^0.4.5",

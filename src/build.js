@@ -5,21 +5,91 @@ import { componentize } from "componentize-qjs";
 import * as path from "node:path";
 import * as fs from "node:fs";
 
-async function buildPlugin(entryPath, outputPath, witDir) {
+const packageRoot = path.resolve(import.meta.dirname, "..");
+
+function parseArgs(argv) {
+  const positionals = [];
+  let abi = "0.2";
+  let witDir;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--abi") {
+      abi = argv[++i];
+    } else if (arg.startsWith("--abi=")) {
+      abi = arg.slice("--abi=".length);
+    } else if (arg === "--wit-dir") {
+      witDir = argv[++i];
+    } else if (arg.startsWith("--wit-dir=")) {
+      witDir = arg.slice("--wit-dir=".length);
+    } else {
+      positionals.push(arg);
+    }
+  }
+
+  if (positionals.length < 2) {
+    console.log(
+      "Usage: pumpkin-plugin-build <entry.ts> <output.wasm> [wit-dir] [--abi 0.1|0.2] [--wit-dir path]",
+    );
+    process.exit(1);
+  }
+
+  // Preserve the previous optional third positional WIT-directory argument.
+  witDir ??= positionals[2];
+
+  if (abi !== "0.1" && abi !== "0.2") {
+    throw new Error("Unsupported Pumpkin plugin ABI: " + abi);
+  }
+
+  witDir ??= path.join(
+    packageRoot,
+    abi === "0.2" ? "wit-v0.2" : "wit/v0.1",
+  );
+
+  return {
+    entryPath: positionals[0],
+    outputPath: positionals[1],
+    witDir,
+    abi,
+  };
+}
+
+async function buildPlugin(entryPath, outputPath, witDir, abi) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   const tempJs = path.join(path.dirname(outputPath), "temp.js");
 
-  console.log(`1. Bundling ${entryPath}...`);
+  const apiEntry = path.join(
+    packageRoot,
+    "dist",
+    abi === "0.2" ? "index.ts" : "v0.1.ts",
+  );
+
+  const alias = {
+    "@pumpkinmc/pumpkin-api-ts": apiEntry,
+  };
+
+  if (abi === "0.2") {
+    alias["@minecraft/server-gametest"] = path.join(
+      packageRoot,
+      "dist",
+      "minecraft-server-gametest.ts",
+    );
+  }
+
+  console.log(
+    "1. Bundling " + entryPath + " for pumpkin:plugin@" + abi + ".0...",
+  );
   await esbuild.build({
     entryPoints: [entryPath],
     bundle: true,
     outfile: tempJs,
     format: "esm",
     target: "es2022",
-    // Externalize the host-provided imports
+    alias,
     external: ["pumpkin:plugin/*"],
   });
 
-  console.log(`2. Running through \`componentize-qjs\`...`);
+  console.log("2. Running through componentize-qjs...");
   try {
     const { component } = await componentize({
       worldName: "plugin",
@@ -28,32 +98,24 @@ async function buildPlugin(entryPath, outputPath, witDir) {
       optSize: true,
       minify: true,
     });
-
     fs.writeFileSync(outputPath, component);
-  } catch (err) {
-    console.error("Failed to componentize:", err);
-    process.exit(1);
   } finally {
-    // Clean up
     if (fs.existsSync(tempJs)) {
       fs.unlinkSync(tempJs);
     }
   }
 
-  console.log(`Successfully built plugin to ${outputPath}`);
+  console.log("Successfully built plugin to " + outputPath);
 }
 
-const args = process.argv.slice(2);
-if (args.length < 2) {
-  console.log("Usage: node build.js <entry.ts> <output.wasm> [wit-dir]");
-  process.exit(1);
-}
+const options = parseArgs(process.argv.slice(2));
 
-const entry = args[0];
-const output = args[1];
-const wit = args[2] || path.join(import.meta.dirname, "../wit/v0.1");
-
-buildPlugin(entry, output, wit).catch((err) => {
+buildPlugin(
+  options.entryPath,
+  options.outputPath,
+  options.witDir,
+  options.abi,
+).catch((err) => {
   console.error(err);
   process.exit(1);
 });

@@ -111,3 +111,43 @@ For convience, it's recommended to add a scripts section to your `package.json`
 ```
 
 Execute with `npm run build`
+
+
+## v0.2 ABI and GameTest
+
+The build command now accepts an explicit ABI:
+
+    pumpkin-plugin-build plugin.ts build/plugin.wasm --abi 0.2
+    pumpkin-plugin-build plugin.ts build/plugin.wasm --abi 0.1
+
+v0.2 is the default. The exact v0.2 WIT package used by the Pumpkin GameTest
+feature branch is vendored in wit-v0.2; v0.1 continues to use wit/v0.1.
+
+Generate guest declarations with npm run generate:v0.2 or npm run generate:v0.1.
+
+For v0.2 GameTest source, install @minecraft/server-gametest for Mojang's public
+TypeScript declarations and keep the normal import:
+
+    import * as gametest from "@minecraft/server-gametest";
+
+The build tool aliases that module to Pumpkin's runtime compatibility shim.
+Only this vertical slice is implemented: registerAsync, Test.spawnSimulatedPlayer,
+the inherited runCommand/location surface, and SimulatedPlayer.disconnect.
+
+registerAsync queues a numeric handler ID during JavaScript module evaluation;
+the actual Pumpkin host registration is deferred until the plugin on-load export,
+when the host plugin/server/name state is available.
+
+Pumpkin v0.2 host calls are asynchronous even where Mojang's API is synchronous.
+Use:
+
+    const result = await player.runCommand("tp @s 10 80 10");
+    const location = await player.location;
+    await player.disconnect();
+
+This remains valid against Mojang's declarations because await accepts immediate
+values as well as Promises. RegistrationBuilder options and the rest of the
+GameTest/SimulatedPlayer API are intentionally unsupported; builder calls fail
+with an explicit error.
+
+See example/gametest.ts for the complete teleport GameTest.
