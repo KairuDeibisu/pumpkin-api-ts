@@ -1,14 +1,15 @@
 {
   "name": "@pumpkinmc/pumpkin-api-ts",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Pumpkin plugin API for TypeScript",
   "license": "MIT OR Apache-2.0",
-  "main": "dist/index.ts",
-  "types": "dist/index.ts",
+  "main": "dist/v0.2/index.ts",
+  "types": "dist/v0.2/index.ts",
   "files": [
     "dist",
     "src/build.js",
-    "wit"
+    "wit",
+    "wit-v0.2"
   ],
   "publishConfig": {
     "tag": "dev"
@@ -17,13 +18,16 @@
     "pumpkin-plugin-build": "src/build.js"
   },
   "scripts": {
-    "prepare": "jco guest-types wit/v0.1 -n plugin -o dist/bindings --name index"
+    "prepare": "jco guest-types wit-v0.2 -n plugin -o dist/bindings-v0.2 --name index",
+    "check": "tsc --noEmit --strict --target es2022 --lib es2022,esnext.disposable --module esnext --moduleResolution bundler dist/v0.2/index.ts dist/v0.2/server-gametest.ts"
   },
   "dependencies": {
+    "@minecraft/server-gametest": "1.0.0-beta.1.21.60-preview.24",
     "componentize-qjs": "^0.4.5",
     "esbuild": "^0.28.2"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "^1.34.0"
+    "@bytecodealliance/jco": "^1.34.0",
+    "typescript": "^7.0.2"
   }
 }

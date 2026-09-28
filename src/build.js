@@ -17,6 +17,10 @@ async function buildPlugin(entryPath, outputPath, witDir) {
     target: "es2022",
     // Externalize the host-provided imports
     external: ["pumpkin:plugin/*"],
+    alias: {
+      "@pumpkinmc/pumpkin-api-ts": path.join(import.meta.dirname, "../dist/v0.2/index.ts"),
+      "@minecraft/server-gametest": path.join(import.meta.dirname, "../dist/v0.2/server-gametest.ts"),
+    },
   });
 
   console.log(`2. Running through \`componentize-qjs\`...`);
@@ -51,7 +55,7 @@ if (args.length < 2) {
 
 const entry = args[0];
 const output = args[1];
-const wit = args[2] || path.join(import.meta.dirname, "../wit/v0.1");
+const wit = args[2] || path.join(import.meta.dirname, "../wit-v0.2");
 
 buildPlugin(entry, output, wit).catch((err) => {
   console.error(err);

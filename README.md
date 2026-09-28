@@ -1,113 +1,63 @@
 # Pumpkin API for TypeScript
 
-This package provides the TypeScript bindings for building [Pumpkin](https://github.com/Pumpkin-MC/Pumpkin) plugins using WebAssembly (Wasm) components.
+Build Pumpkin WIT 0.2 plugins as WebAssembly components. This initial API provides GameTest function registration and `Test.succeed()` using the exact `@minecraft/server-gametest` import.
 
-## Features
+The official Minecraft package supplies the TypeScript declarations. `pumpkin-plugin-build` bundles Pumpkin's implementation of that module into the plugin.
 
-- **Type-safe API**: Full TypeScript definitions for all Pumpkin plugin interfaces.
-- **Easy Build Process**: Includes a build script to bundle your TypeScript code and componentize it into a `.wasm` file.
-- **Wasm Components**: Built on the WebAssembly Component Model for high performance and portability.
-
-## Installation
-
-You'll want to download the latest version of the bindings from the [CI release](https://github.com/Pumpkin-MC/pumpkin-api-ts/releases/tag/CI).
-
-We don't have stable versions as Pumpkin and its API is still pre-release.
-
-Then `npm install` the downloaded `.tgz`. e.g.
-
-```bash
-npm install pumpkinmc-pumpkin-api-ts-50917277.tgz
-```
-
-You may also choose to install directly from the download URL (after determining it; commit hash changes)
-
-```bash
-npm install https://github.com/Pumpkin-MC/pumpkin-api-ts/releases/download/CI/pumpkinmc-pumpkin-api-ts-XXXXXXXX.tgz
-```
-
-## Creating a Plugin
-
-1. Create a new TypeScript file (e.g., `my-plugin.ts`).
-2. Extend the `Plugin` class and implement the `metadata()` method.
-3. Register your plugin using `registerPlugin()`.
-4. Add `export * from "@pumpkinmc/pumpkin-api-ts";` at the end.
-
-Example:
+## Example
 
 ```typescript
 import { Plugin, registerPlugin } from "@pumpkinmc/pumpkin-api-ts";
-
-import { PluginMetadata } from "pumpkin:plugin/metadata@0.1.0";
-import { Context } from "pumpkin:plugin/context@0.1.0";
-import { TextComponent } from "pumpkin:plugin/text@0.1.0";
-import * as logging from "pumpkin:plugin/logging@0.1.0";
-import { PlayerJoinEventData } from "pumpkin:plugin/event@0.1.0";
+import { register, type Test } from "@minecraft/server-gametest";
+import type { PluginMetadata } from "pumpkin:plugin/metadata@0.2.0";
 
 class MyPlugin extends Plugin {
   metadata(): PluginMetadata {
     return {
-      name: "My TypeScript Plugin",
-      version: "0.1.0",
-      authors: ["alex"],
-      description: "A sample plugin written in TypeScript",
+      name: "Always Pass GameTest",
+      version: "0.2.0",
+      authors: ["you"],
+      description: "Provides minecraft:always_pass",
       dependencies: [],
       permissions: [],
     };
   }
-  onLoad(ctx: Context): void {
-    super.onLoad(ctx);
-    logging.log("info", "Hello from TypeScript plugin!");
-
-    this.registerEvent(
-      ctx,
-      "player-join-event",
-      (_srv, evt: PlayerJoinEventData) => {
-        logging.log("info", `Player ${evt.player.getName()} joined!`);
-
-        evt.player
-          .getWorld()
-          .broadcastSystemMessage(
-            TextComponent.text(
-              `Welcome ${evt.player.getName()} to the server!`,
-            ),
-            false,
-          );
-      },
-    );
-  }
 }
 
-registerPlugin(new MyPlugin());
+register("minecraft", "always_pass", (test: Test) => {
+  test.succeed();
+});
 
+registerPlugin(new MyPlugin());
 export * from "@pumpkinmc/pumpkin-api-ts";
 ```
 
-## Building Your Plugin
+Register at module scope or during `onLoad()`. Pumpkin registers these callbacks during plugin loading. GameTest callbacks run through `pumpkin-scheduler`; the game tick observes their completion without waiting for the plugin.
 
-To build your plugin into a `.wasm` component, use the provided build script:
+## Build and run
 
-```bash
-./node_modules/.bin/pumpkin-plugin-build <entry-file.ts> <output-file.wasm>
-```
-
-Example:
+Install the SDK package, then build:
 
 ```bash
-./node_modules/.bin/pumpkin-plugin-build my-plugin.ts build/my-plugin.wasm
+pumpkin-plugin-build my-plugin.ts build/plugin.wasm
 ```
 
-For convience, it's recommended to add a scripts section to your `package.json`
+Copy the component into Pumpkin's `plugins/` directory and start the server with its plugin signature policy configured to allow your development plugin. Run:
 
-```json
-{
-  "scripts": {
-    "build": "pumpkin-plugin-build my-plugin.ts build/my-plugin.wasm"
-  },
-  "dependencies": {
-    ...
-  }
-}
+```text
+/test run minecraft:always_pass
 ```
 
-Execute with `npm run build`
+Pumpkin's bundled datapack supplies the `minecraft:always_pass` test instance and its empty structure. The example supplies the function and marks the run successful.
+
+Only `register()` and `Test.succeed()` are implemented in this first version. RegistrationBuilder options and other GameTest methods are unsupported; test instance configuration comes from datapacks. The WIT 0.2 files in `wit-v0.2/` match `plugin-v0.2-fork/crates/pumpkin-plugin-wit/v0.2/`.
+
+## Develop this SDK
+
+```bash
+npm install
+npm run check
+npm pack
+```
+
+The existing WIT submodule and `dist/index.ts` contain the previous 0.1 bindings. The package entry point and default build target use 0.2.
